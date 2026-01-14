@@ -26,7 +26,6 @@
 - [Examples](#-examples)
 - [Troubleshooting](#-troubleshooting)
 - [Advanced Topics](#-advanced-topics)
-- [License](#-license)
 
 ##  Overview
 

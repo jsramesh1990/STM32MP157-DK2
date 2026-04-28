@@ -727,7 +727,7 @@ int main() {
 
 ##  Examples
 
-### Example 1: LED Blink (Complete Program)
+### Example 1: LED Blink (Complete Sample Program)
 ```c
 // blink.c - Blink LED using unified GPIO API
 #include <stdio.h>

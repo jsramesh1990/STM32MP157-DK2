@@ -1010,25 +1010,6 @@ void mqtt_gpio_callback(char *topic, char *payload) {
 }
 ```
 
-##  License
-
-![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-##  Contributing
-
-![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen?style=for-the-badge)
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-### How to Contribute
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ### Code Standards
 - Follow existing code style
 - Add comments for new functions

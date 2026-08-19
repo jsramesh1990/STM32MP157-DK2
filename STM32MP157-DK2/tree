@@ -1,0 +1,97 @@
+STM32MP157-DK2/
+│
+├── README.md
+├── LICENSE
+├── Makefile
+├── CMakeLists.txt
+│
+├── docs/
+│   ├── architecture.md
+│   ├── gpio-linux-subsystem.md
+│   ├── gpio-sysfs.md
+│   ├── gpio-libgpiod.md
+│   ├── gpio-driver.md
+│   ├── device-tree.md
+│   ├── stm32mp157-gpio.md
+│   ├── boot-flow.md
+│   └── troubleshooting.md
+│
+├── application/
+│   ├── include/
+│   │   ├── gpio_common.h
+│   │   ├── gpio_sysfs.h
+│   │   └── gpio_libgpiod.h
+│   │
+│   ├── src/
+│   │   ├── gpio-sysfs.c
+│   │   ├── gpio-libgpiod.c
+│   │   └── gpio-common.c
+│   │
+│   └── examples/
+│       ├── led_blink.c
+│       ├── button.c
+│       ├── button_irq.c
+│       └── gpio_toggle.c
+│
+├── kernel/
+│   ├── driver/
+│   │   ├── virtual_gpio.c
+│   │   ├── virtual_gpio.h
+│   │   └── Makefile
+│   │
+│   └── patches/
+│       └── README.md
+│
+├── device-tree/
+│   ├── stm32mp157-gpio-test.dts
+│   ├── stm32mp157-gpio-test-overlay.dts
+│   └── README.md
+│
+├── simulator/
+│   ├── simulator.py
+│   ├── gpio_model.py
+│   ├── gpio_events.py
+│   └── config.json
+│
+├── tests/
+│   ├── unit/
+│   │   └── test_gpio.c
+│   ├── integration/
+│   │   └── test_gpio_hw.sh
+│   ├── simulation/
+│   │   └── test_simulator.sh
+│   └── test.sh
+│
+├── scripts/
+│   ├── build.sh
+│   ├── clean.sh
+│   ├── deploy.sh
+│   ├── flash_sd.sh
+│   ├── gpio_info.sh
+│   └── hardware_test.sh
+│
+├── yocto/
+│   └── meta-virtual-gpio/
+│       ├── conf/
+│       │   └── layer.conf
+│       │
+│       ├── recipes-apps/
+│       │   └── virtual-gpio/
+│       │       ├── virtual-gpio.bb
+│       │       └── files/
+│       │
+│       ├── recipes-kernel/
+│       │   └── virtual-gpio/
+│       │       └── virtual-gpio.bb
+│       │
+│       └── README.md
+│
+├── configs/
+│   ├── stm32mp157_gpio_defconfig
+│   └── gpio-test-config.json
+│
+└── examples/
+    ├── led/
+    ├── button/
+    ├── interrupt/
+    └── pwm/

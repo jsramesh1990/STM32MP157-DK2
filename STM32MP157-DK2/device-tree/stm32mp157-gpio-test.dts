@@ -1,0 +1,36 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "st,stm32mp157-dk2", "st,stm32mp157";
+
+    fragment@0 {
+        target = <&gpioi>;
+
+        __overlay__ {
+            status = "okay";
+        };
+    };
+
+    fragment@1 {
+        target-path = "/";
+
+        __overlay__ {
+
+            gpio_test_overlay {
+                compatible = "gpio-test-overlay";
+
+                test_led {
+                    label = "overlay-gpio-led";
+                    gpios = <&gpioi 0 GPIO_ACTIVE_HIGH>;
+                    default-state = "off";
+                };
+
+                test_button {
+                    label = "overlay-gpio-button";
+                    gpios = <&gpioi 1 GPIO_ACTIVE_LOW>;
+                };
+            };
+        };
+    };
+};

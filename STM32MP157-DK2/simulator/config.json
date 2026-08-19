@@ -1,0 +1,212 @@
+{
+    "simulator": {
+        "name": "STM32MP157-DK2 GPIO Simulator",
+        "version": "1.0",
+        "log_level": "INFO",
+        "poll_interval_ms": 100
+    },
+
+    "board": {
+        "name": "STM32MP157-DK2",
+        "soc": "STM32MP157",
+        "gpio_chips": 1
+    },
+
+    "gpio": {
+        "chips": [
+            {
+                "name": "gpiochip0",
+                "label": "STM32MP157 GPIO",
+                "num_lines": 16,
+
+                "lines": [
+                    {
+                        "offset": 0,
+                        "name": "GPIO0",
+                        "direction": "input",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "pull_up"
+                    },
+                    {
+                        "offset": 1,
+                        "name": "GPIO1",
+                        "direction": "output",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 2,
+                        "name": "GPIO2",
+                        "direction": "input",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "pull_up"
+                    },
+                    {
+                        "offset": 3,
+                        "name": "GPIO3",
+                        "direction": "output",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 4,
+                        "name": "GPIO4",
+                        "direction": "input",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "pull_down"
+                    },
+                    {
+                        "offset": 5,
+                        "name": "GPIO5",
+                        "direction": "output",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 6,
+                        "name": "GPIO6",
+                        "direction": "input",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "pull_up"
+                    },
+                    {
+                        "offset": 7,
+                        "name": "GPIO7",
+                        "direction": "output",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 8,
+                        "name": "GPIO8",
+                        "direction": "input",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 9,
+                        "name": "GPIO9",
+                        "direction": "output",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 10,
+                        "name": "GPIO10",
+                        "direction": "input",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 11,
+                        "name": "GPIO11",
+                        "direction": "output",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 12,
+                        "name": "GPIO12",
+                        "direction": "input",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 13,
+                        "name": "GPIO13",
+                        "direction": "output",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 14,
+                        "name": "GPIO14",
+                        "direction": "input",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    },
+                    {
+                        "offset": 15,
+                        "name": "GPIO15",
+                        "direction": "output",
+                        "active_low": false,
+                        "value": 0,
+                        "bias": "disabled"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "leds": [
+        {
+            "name": "LED1",
+            "gpio": 1,
+            "active_high": true
+        },
+        {
+            "name": "LED2",
+            "gpio": 3,
+            "active_high": true
+        },
+        {
+            "name": "LED3",
+            "gpio": 5,
+            "active_high": true
+        },
+        {
+            "name": "LED4",
+            "gpio": 7,
+            "active_high": true
+        }
+    ],
+
+    "buttons": [
+        {
+            "name": "BUTTON1",
+            "gpio": 0,
+            "active_low": true
+        },
+        {
+            "name": "BUTTON2",
+            "gpio": 2,
+            "active_low": true
+        },
+        {
+            "name": "BUTTON3",
+            "gpio": 4,
+            "active_low": true
+        },
+        {
+            "name": "BUTTON4",
+            "gpio": 6,
+            "active_low": true
+        }
+    ],
+
+    "interrupts": {
+        "enabled": true,
+        "default_edge": "both"
+    },
+
+    "pwm": {
+        "enabled": true,
+        "frequency_hz": 1000,
+        "default_duty_cycle": 50
+    }
+}

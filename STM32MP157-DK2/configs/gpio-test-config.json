@@ -1,0 +1,44 @@
+{
+    "board": {
+        "name": "STM32MP157-DK2",
+        "soc": "STM32MP157",
+        "architecture": "ARM Cortex-A7",
+        "os": "Embedded Linux"
+    },
+
+    "gpio": {
+        "interface": "auto",
+        "sysfs_root": "/sys/class/gpio",
+        "gpiochip": "/dev/gpiochip0"
+    },
+
+    "led": {
+        "name": "user_led",
+        "chip": 0,
+        "line": 13,
+        "direction": "output",
+        "active_low": false,
+        "initial_value": 0
+    },
+
+    "button": {
+        "name": "user_button",
+        "chip": 0,
+        "line": 14,
+        "direction": "input",
+        "active_low": true,
+        "bias": "pull_up",
+        "edge": "both"
+    },
+
+    "test": {
+        "blink_count": 10,
+        "blink_period_ms": 500,
+        "button_timeout_ms": 1000
+    },
+
+    "logging": {
+        "enabled": true,
+        "level": "info"
+    }
+}

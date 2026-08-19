@@ -1,0 +1,56 @@
+/dts-v1/;
+
+#include "stm32mp157.dtsi"
+
+/ {
+    model = "STM32MP157-DK2 GPIO Test Board";
+    compatible = "st,stm32mp157-dk2", "st,stm32mp157";
+
+    aliases {
+        gpio-test-led = &gpio_test_led;
+        gpio-test-button = &gpio_test_button;
+    };
+
+    gpio_test {
+        compatible = "gpio-test";
+
+        gpio_test_led: led {
+            label = "gpio-test-led";
+            gpios = <&gpioi 0 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+
+        gpio_test_button: button {
+            label = "gpio-test-button";
+            gpios = <&gpioi 1 GPIO_ACTIVE_LOW>;
+        };
+    };
+
+    gpio_test_keys {
+        compatible = "gpio-keys";
+
+        test_button {
+            label = "GPIO Test Button";
+            linux,code = <KEY_ENTER>;
+            gpios = <&gpioi 1 GPIO_ACTIVE_LOW>;
+            debounce-interval = <20>;
+        };
+    };
+
+    gpio_test_leds {
+        compatible = "gpio-leds";
+
+        test_led {
+            label = "GPIO Test LED";
+            gpios = <&gpioi 0 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+    };
+};
+
+/*
+ * Enable GPIO controller used by the test.
+ */
+&gpioi {
+    status = "okay";
+};

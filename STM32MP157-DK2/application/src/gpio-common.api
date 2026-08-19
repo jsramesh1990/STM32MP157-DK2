@@ -1,0 +1,19 @@
+int gpio_init(gpio_config_t *config);
+
+int gpio_write(gpio_config_t *config,
+               int value);
+
+int gpio_read(gpio_config_t *config);
+
+int gpio_toggle(gpio_config_t *config);
+
+int gpio_set_direction(gpio_config_t *config,
+                       const char *direction);
+
+int gpio_cleanup(gpio_config_t *config);
+
+void gpio_print_status(
+    const gpio_config_t *config);
+
+const char *gpio_backend_name(
+    const gpio_config_t *config);

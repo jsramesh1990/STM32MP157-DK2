@@ -1,0 +1,49 @@
+{
+    "board": {
+        "name": "STM32MP157-DK2",
+        "platform": "STM32MP157",
+        "soc": "STM32MP157"
+    },
+
+    "gpio": {
+        "backend": "libgpiod",
+        "simulation": false,
+        "chip": 0
+    },
+
+    "led": {
+        "name": "test_led",
+        "chip": 0,
+        "line": 0,
+        "active_low": false
+    },
+
+    "button": {
+        "name": "test_button",
+        "chip": 0,
+        "line": 1,
+        "active_low": true,
+        "bias": "pull_up",
+        "edge": "both"
+    },
+
+    "pwm": {
+        "name": "pwm_led",
+        "chip": 0,
+        "line": 2,
+        "period_us": 1000
+    },
+
+    "tests": {
+        "led_blink": true,
+        "gpio_toggle": true,
+        "button": true,
+        "button_interrupt": true,
+        "pwm": true
+    },
+
+    "logging": {
+        "level": "info",
+        "console": true
+    }
+}

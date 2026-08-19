@@ -1,1041 +1,1932 @@
-# GPIO Control & Simulator System
 
-![C Language](https://img.shields.io/badge/C-11%2B-blue?style=for-the-badge&logo=c)
-![Python](https://img.shields.io/badge/Python-3.8%2B-green?style=for-the-badge&logo=python)
-![Linux](https://img.shields.io/badge/Linux-GPIO%20Control-orange?style=for-the-badge&logo=linux)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
-![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Raspberry%20Pi-lightgrey?style=for-the-badge)
-
-[![Sysfs GPIO](https://img.shields.io/badge/Sysfs%20GPIO-✓-success?style=flat-square)](https://www.kernel.org/doc/html/latest/admin-guide/gpio/sysfs.html)
-[![libgpiod](https://img.shields.io/badge/libgpiod-✓-blueviolet?style=flat-square)](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/)
-[![Hardware Simulation](https://img.shields.io/badge/Hardware%20Simulation-✓-orange?style=flat-square)](https://en.wikipedia.org/wiki/Simulation)
-
-##  Table of Contents
-- [Overview](#-overview)
-- [System Architecture](#-system-architecture)
-- [Features](#-features)
-- [GPIO Interfaces Explained](#-gpio-interfaces-explained)
-- [Installation](#-installation)
-- [Build System](#-build-system)
-- [Usage](#-usage)
-- [Simulation Mode](#-simulation-mode)
-- [Hardware Mode](#-hardware-mode)
-- [System Flow](#-system-flow)
-- [API Documentation](#-api-documentation)
-- [Testing](#-testing)
-- [Examples](#-examples)
-- [Troubleshooting](#-troubleshooting)
-- [Advanced Topics](#-advanced-topics)
-
-##  Overview
-
-A comprehensive GPIO control system for Linux that supports both traditional sysfs and modern libgpiod interfaces, complete with a hardware simulator for development without physical GPIO hardware. This project demonstrates professional GPIO programming practices for embedded systems, IoT devices, and Raspberry Pi applications.
-
-##  System Architecture
-
-```mermaid
-graph TB
-    subgraph "Application Layer"
-        A[User Application] --> B[GPIO Abstraction Layer]
-    end
-    
-    subgraph "Interface Layer"
-        B --> C{Sysfs Interface<br/>/sys/class/gpio}
-        B --> D[libgpiod Interface<br/>/dev/gpiochip*]
-    end
-    
-    subgraph "Simulation Layer"
-        C --> E[Virtual File System]
-        D --> F[libgpiod Simulator]
-        E --> G[Python Simulator<br/>simulator.py]
-        F --> G
-    end
-    
-    subgraph "Hardware Layer"
-        C --> H[Real Hardware GPIO]
-        D --> H
-        H --> I[LEDs, Buttons, Sensors]
-    end
-    
-    subgraph "Testing Layer"
-        J[test.sh] --> K[Automated Tests]
-        L[Makefile] --> M[Build System]
-    end
-    
-    G --> N[Visual Simulation UI]
-    K --> O[Test Results]
-```
-
-##  Features
-
-###  **Dual Interface Support**
-- **Sysfs Interface**: Traditional GPIO control via `/sys/class/gpio`
-- **libgpiod Interface**: Modern, efficient GPIO control library
-- **Unified API**: Consistent function calls for both interfaces
-- **Auto-detection**: Automatically selects best available interface
-
-###  **Hardware Simulation**
-- **Virtual GPIO Pins**: Simulate up to 128 GPIO pins
-- **Visual Feedback**: LED simulation with colors and brightness
-- **No Hardware Required**: Perfect for development and testing
-- **Cross-platform**: Works on any Linux system
-
-###  **Advanced Features**
-- **Pin Direction Control**: Input/Output configuration
-- **Edge Detection**: Rising/falling edge interrupts
-- **Debouncing**: Software debouncing for noisy inputs
-- **Multiple Chips**: Support for multiple GPIO chips
-- **Thread Safety**: Safe for multi-threaded applications
-
-###  **Developer Tools**
-- **Comprehensive Logging**: Detailed debug information
-- **Error Handling**: Graceful error recovery
-- **Performance Metrics**: Timing and performance data
-- **Configuration Files**: JSON-based configuration
-
-##  GPIO Interfaces Explained
-
-### Sysfs Interface (Legacy)
-```
-┌─────────────────────────────────────────────────────┐
-│               Sysfs GPIO Interface                  │
-├─────────────────────────────────────────────────────┤
-│ Kernel exposes GPIOs through virtual filesystem:    │
-│ /sys/class/gpio/                                    │
-│                                                     │
-│ Operations:                                         │
-│ 1. Export pin:    echo 17 > export                 │
-│ 2. Set direction: echo out > gpio17/direction      │
-│ 3. Write value:   echo 1 > gpio17/value            │
-│ 4. Read value:    cat gpio17/value                 │
-│ 5. Unexport pin:  echo 17 > unexport               │
-│                                                     │
-│ Advantages:                                        │
-│ • Simple, text-based interface                     │
-│ • Available on all Linux systems                   │
-│ • Easy to debug with shell commands                │
-│                                                     │
-│ Disadvantages:                                     │
-│ • Slow (file I/O overhead)                         │
-│ • Not thread-safe                                  │
-│ • Deprecated in newer kernels                      │
-└─────────────────────────────────────────────────────┘
-```
-
-### libgpiod Interface (Modern)
-```
-┌─────────────────────────────────────────────────────┐
-│              libgpiod Interface                     │
-├─────────────────────────────────────────────────────┤
-│ Modern C library for GPIO access:                   │
-│ /dev/gpiochip*                                      │
-│                                                     │
-│ Operations:                                         │
-│ 1. Open chip:      chip = gpiod_chip_open("/dev/gpiochip0")
-│ 2. Get line:       line = gpiod_chip_get_line(chip, 17)
-│ 3. Request output: gpiod_line_request_output(line, "example", 0)
-│ 4. Set value:      gpiod_line_set_value(line, 1)   │
-│ 5. Get value:      value = gpiod_line_get_value(line)
-│                                                     │
-│ Advantages:                                        │
-│ • Fast, efficient access                           │
-│ • Thread-safe                                      │
-│ • Event monitoring with callbacks                  │
-│ • Future-proof                                    │
-│                                                     │
-│ Disadvantages:                                     │
-│ • Requires library installation                    │
-│ • Slightly more complex API                       │
-└─────────────────────────────────────────────────────┘
-```
-
-##  Installation
-
-### Prerequisites
-![Requirements](https://img.shields.io/badge/Requirements-Linux%20Kernel%204.19%2B-blue?style=flat-square)
-
-```bash
-# Ubuntu/Debian
-sudo apt update
-sudo apt install -y \
-    build-essential \
-    libgpiod-dev \
-    libgpiod2 \
-    python3 \
-    python3-pip \
-    git \
-    make
-
-# Raspberry Pi OS
-sudo apt update
-sudo apt install -y \
-    libgpiod-dev \
-    python3-gpiozero \
-    python3-pip
-
-# Install Python dependencies
-pip3 install colorama
-```
-
-### Quick Installation
-```bash
-# Clone repository
-git clone https://github.com/yourusername/gpio-control-system.git
-cd gpio-control-system
-
-# Build everything
-make all
-
-# Test the system
-./test.sh
-```
-
-### Manual Installation
-```bash
-# Build C programs
-make gpio-sysfs
-make gpio-libgpiod
-
-# Make executables
-chmod +x gpio-sysfs gpio-libgpiod simulator.py test.sh
-
-# Test each component
-./gpio-sysfs --help
-./gpio-libgpiod --help
-python3 simulator.py --help
-```
-
-##  Build System
-
-### Makefile Targets
-```makefile
-# Available targets:
-all          # Build everything
-sysfs        # Build sysfs version
-libgpiod     # Build libgpiod version
-simulator    # Set up simulation environment
-clean        # Clean build files
-test         # Run all tests
-install      # Install system-wide
-uninstall    # Remove installation
-```
-
-### Build Commands
-```bash
-# Standard build
-make
-
-# Build specific components
-make sysfs
-make libgpiod
-
-# Debug build
-make debug
-
-# Release build with optimizations
-make release
-
-# Clean and rebuild
-make clean && make
-
-# Install to /usr/local/bin
-sudo make install
-```
-
-##  Usage
-
-### Basic GPIO Operations
-```bash
-# Using sysfs interface
-./gpio-sysfs --pin 17 --direction out --value 1
-./gpio-sysfs --pin 18 --direction in
-
-# Using libgpiod interface
-./gpio-libgpiod --chip 0 --line 17 --direction out --value 1
-./gpio-libgpiod --chip 0 --line 18 --direction in --edge rising
-
-# Read pin value
-./gpio-sysfs --pin 18 --read
-./gpio-libgpiod --chip 0 --line 18 --read
-```
-
-### Simulation Mode
-```bash
-# Start the simulator
-python3 simulator.py --pins 8 --gui
-
-# In another terminal, use GPIO with simulation
-export VIRT_GPIO_ROOT=/tmp/gpio_sim
-./gpio-sysfs --pin 17 --direction out --value 1
-
-# Or use the test script
-./test.sh
-```
-
-### Command Line Options
-```
-Common Options:
-  --pin, -p        GPIO pin number (default: 17)
-  --direction, -d  Direction: in, out, high, low (default: out)
-  --value, -v      Value: 0, 1, toggle (default: 1)
-  --read, -r       Read current pin value
-  --chip, -c       GPIO chip number (libgpiod only)
-  --edge, -e       Edge detection: none, rising, falling, both
-  --bias, -b       Bias setting: default, pull_up, pull_down, disable
-  
-Simulation Options:
-  --simulate, -s   Enable simulation mode
-  --gui, -g        Enable graphical simulation
-  --verbose, -V    Enable verbose output
-  --help, -h       Show help message
-```
-
-##  Simulation Mode
-
-### Virtual GPIO Environment
-```bash
-# Setup simulation environment
-export VIRT_GPIO_ROOT=/tmp/gpio_sim
-mkdir -p $VIRT_GPIO_ROOT
-
-# Start simulator with GUI
-python3 simulator.py --pins 32 --gui --log-level debug
-
-# Simulator features:
-# - Visual LED representation
-# - Button simulation
-# - Real-time logging
-# - Multiple GPIO chips
-# - Export/import pin states
-```
-
-### Simulator UI
-```
-┌─────────────────────────────────────────────────────┐
-│               GPIO Simulator v1.0                   │
-├─────────────────────────────────────────────────────┤
-│ Chip 0: /dev/gpiochip0                             │
-│                                                     │
-│ Pin 17: [🟢 ON ]  OUT  Value: 1                    │
-│ Pin 18: [🔴 OFF]  IN   Value: 0 (Pull-up)          │
-│ Pin 19: [🟡 PWM]  OUT  Value: 128/255              │
-│ Pin 20: [⚪ NC ]  ---  Not configured              │
-│                                                     │
-│ Controls: [Toggle 17] [Read 18] [Export All]       │
-│                                                     │
-│ Log:                                              │
-│ 12:34:56 - Pin 17 set to OUTPUT                    │
-│ 12:34:57 - Pin 17 value changed: 0 → 1             │
-│ 12:34:58 - Pin 18 interrupt: RISING EDGE           │
-└─────────────────────────────────────────────────────┘
-```
-
-### Simulator Python API
-```python
-from gpio_simulator import GPIOSimulator
-
-# Create simulator instance
-sim = GPIOSimulator(num_pins=32, gui=True)
-
-# Control pins programmatically
-sim.set_direction(17, "out")
-sim.write(17, 1)
-value = sim.read(18)
-
-# Add callbacks for events
-def on_pin_change(pin, value):
-    print(f"Pin {pin} changed to {value}")
-
-sim.add_callback(18, on_pin_change)
-
-# Save/Load pin states
-sim.save_state("gpio_state.json")
-sim.load_state("gpio_state.json")
-```
-
-##  Hardware Mode
-
-### Real Hardware Setup
-```bash
-# Check available GPIO chips
-ls /dev/gpiochip*
-gpiodetect
-
-# Check chip info
-gpioinfo gpiochip0
-
-# Test with actual hardware
-# Connect LED to GPIO17 (pin 11 on Raspberry Pi)
-# 220Ω resistor between GPIO17 and LED anode
-# LED cathode to ground
-
-# Control the LED
-./gpio-libgpiod --chip 0 --line 17 --direction out --value 1
-./gpio-libgpiod --chip 0 --line 17 --value 0
-```
-
-### Hardware Examples
-
-#### LED Blink Example
-```bash
-#!/bin/bash
-# blink.sh - Blink LED on GPIO17
-for i in {1..10}; do
-    ./gpio-libgpiod --chip 0 --line 17 --value 1
-    sleep 0.5
-    ./gpio-libgpiod --chip 0 --line 17 --value 0
-    sleep 0.5
-done
-```
-
-#### Button Read Example
-```bash
-#!/bin/bash
-# button.sh - Read button on GPIO18
-./gpio-libgpiod --chip 0 --line 18 --direction in --bias pull_up
-while true; do
-    value=$(./gpio-libgpiod --chip 0 --line 18 --read)
-    if [ "$value" = "0" ]; then
-        echo "Button pressed!"
-    fi
-    sleep 0.1
-done
-```
-
-##  System Flow
-
-### Complete Control Flow
-```mermaid
-sequenceDiagram
-    participant User
-    participant App
-    participant Interface
-    participant Kernel
-    participant Hardware
-    
-    User->>App: Run GPIO command
-    App->>App: Parse arguments
-    App->>App: Select interface (sysfs/libgpiod)
-    
-    alt Sysfs Interface
-        App->>Kernel: Write to /sys/class/gpio/export
-        Kernel-->>App: Create gpioN directory
-        App->>Kernel: Write to gpioN/direction
-        App->>Kernel: Write to gpioN/value
-        Kernel->>Hardware: Configure GPIO pin
-        Hardware-->>App: Success confirmation
-    else libgpiod Interface
-        App->>Kernel: Open /dev/gpiochipN
-        App->>Kernel: Request GPIO line
-        App->>Kernel: Set line configuration
-        Kernel->>Hardware: Configure GPIO pin
-        Hardware-->>App: Success confirmation
-    end
-    
-    alt Simulation Mode
-        App->>Simulator: Virtual file operations
-        Simulator->>Simulator: Update virtual state
-        Simulator-->>App: Return simulated value
-        Simulator-->>User: Visual feedback (GUI)
-    else Hardware Mode
-        Hardware->>Hardware: Actual pin change
-        Hardware-->>User: Physical response (LED on/off)
-    end
-```
-
-### Pin Configuration Flow
-```
-1. Pin Selection
-   └── User specifies pin number (e.g., GPIO17)
-       ├── Validate pin number is available
-       └── Check permissions
-
-2. Interface Selection
-   └── Auto-select based on availability
-       ├── Prefer libgpiod if available
-       ├── Fallback to sysfs
-       └── Enable simulation if no hardware
-
-3. Direction Configuration
-   └── Set pin direction
-       ├── OUTPUT: Drive high/low
-       ├── INPUT: Read state
-       ├── HIGH: Output with pull-up
-       └── LOW: Output with pull-down
-
-4. Value Operation
-   └── Write or read value
-       ├── Write: Set pin state (0/1)
-       ├── Read: Get current state
-       └── Toggle: Invert current state
-
-5. Cleanup
-   └── Release resources
-       ├── Unexport pin (sysfs)
-       ├── Release line (libgpiod)
-       └── Save state (simulation)
-```
-
-##  API Documentation
-
-### Core Functions (sysfs)
-
-#### `gpio_export()`
-```c
-/**
- * Export GPIO pin for use
- * @param pin GPIO pin number to export
- * @return 0 on success, negative error code on failure
- */
-int gpio_export(unsigned int pin);
-```
-
-#### `gpio_unexport()`
-```c
-/**
- * Unexport GPIO pin
- * @param pin GPIO pin number to unexport
- * @return 0 on success, negative error code on failure
- */
-int gpio_unexport(unsigned int pin);
-```
-
-#### `gpio_set_direction()`
-```c
-/**
- * Set GPIO pin direction
- * @param pin GPIO pin number
- * @param dir Direction: "in", "out", "high", "low"
- * @return 0 on success, negative error code on failure
- */
-int gpio_set_direction(unsigned int pin, const char *dir);
-```
-
-#### `gpio_set_value()`
-```c
-/**
- * Set GPIO pin value
- * @param pin GPIO pin number
- * @param value Value to set (0 or 1)
- * @return 0 on success, negative error code on failure
- */
-int gpio_set_value(unsigned int pin, unsigned int value);
-```
-
-#### `gpio_get_value()`
-```c
-/**
- * Get GPIO pin value
- * @param pin GPIO pin number
- * @return Current pin value (0 or 1), negative on error
- */
-int gpio_get_value(unsigned int pin);
-```
-
-### Core Functions (libgpiod)
-
-#### `gpiod_open_chip()`
-```c
-/**
- * Open GPIO chip
- * @param chip_num Chip number or path
- * @return Pointer to chip handle, NULL on error
- */
-struct gpiod_chip *gpiod_open_chip(const char *chip_num);
-```
-
-#### `gpiod_request_line()`
-```c
-/**
- * Request GPIO line
- * @param chip GPIO chip handle
- * @param offset Line offset (pin number)
- * @param config Line configuration
- * @return Pointer to line handle, NULL on error
- */
-struct gpiod_line *gpiod_request_line(struct gpiod_chip *chip,
-                                      unsigned int offset,
-                                      struct gpiod_line_request_config *config);
-```
-
-#### `gpiod_line_set_value()`
-```c
-/**
- * Set GPIO line value
- * @param line GPIO line handle
- * @param value Value to set (0 or 1)
- * @return 0 on success, negative on error
- */
-int gpiod_line_set_value(struct gpiod_line *line, int value);
-```
-
-#### `gpiod_line_get_value()`
-```c
-/**
- * Get GPIO line value
- * @param line GPIO line handle
- * @return Current line value (0 or 1), negative on error
- */
-int gpiod_line_get_value(struct gpiod_line *line);
-```
-
-### Unified GPIO API
-```c
-// Unified structure for both interfaces
-typedef struct {
-    int pin;
-    char direction[16];
-    int value;
-    int chip;
-    int use_libgpiod;
-    char edge[16];
-    char bias[16];
-} gpio_config_t;
-
-// Unified functions
-int gpio_init(gpio_config_t *config);
-int gpio_write(gpio_config_t *config, int value);
-int gpio_read(gpio_config_t *config);
-int gpio_cleanup(gpio_config_t *config);
-```
-
-##  Testing
-
-### Automated Test Suite
-```bash
-# Run all tests
-./test.sh
-
-# Run specific test suites
-./test.sh --unit          # Unit tests
-./test.sh --integration   # Integration tests
-./test.sh --simulation    # Simulation tests
-./test.sh --hardware      # Hardware tests (requires GPIO)
-
-# Generate test report
-./test.sh --report
-```
-
-### Test Script Examples
-```bash
-#!/bin/bash
-# test.sh - Comprehensive test suite
-
-echo "=== GPIO Control System Test Suite ==="
-
-# Test 1: Build verification
-echo "Test 1: Building programs..."
-make clean && make
-if [ $? -eq 0 ]; then
-    echo "✓ Build successful"
-else
-    echo "✗ Build failed"
-    exit 1
-fi
-
-# Test 2: Sysfs simulation
-echo "Test 2: Sysfs simulation..."
-export VIRT_GPIO_ROOT=/tmp/gpio_test
-./gpio-sysfs --pin 17 --direction out --value 1 --simulate
-if [ $? -eq 0 ]; then
-    echo "✓ Sysfs simulation successful"
-else
-    echo "✗ Sysfs simulation failed"
-fi
-
-# Test 3: libgpiod simulation
-echo "Test 3: libgpiod simulation..."
-./gpio-libgpiod --chip 0 --line 17 --direction out --value 1 --simulate
-if [ $? -eq 0 ]; then
-    echo "✓ libgpiod simulation successful"
-else
-    echo "✗ libgpiod simulation failed"
-fi
-
-# Test 4: Simulator
-echo "Test 4: Simulator startup..."
-timeout 5 python3 simulator.py --pins 8 --no-gui &
-SIM_PID=$!
-sleep 2
-if ps -p $SIM_PID > /dev/null; then
-    echo "✓ Simulator started successfully"
-    kill $SIM_PID
-else
-    echo "✗ Simulator failed to start"
-fi
-
-echo "=== All tests completed ==="
-```
-
-### Unit Test Examples
-```c
-// test_gpio.c
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include "gpio_sysfs.h"
-#include "gpio_libgpiod.h"
-
-void test_gpio_export() {
-    printf("Testing GPIO export...\n");
-    
-    // Test with simulation
-    setenv("VIRT_GPIO_ROOT", "/tmp/test_gpio", 1);
-    
-    int result = gpio_export(17);
-    assert(result == 0);
-    printf("✓ GPIO export test passed\n");
-}
-
-void test_gpio_direction() {
-    printf("Testing GPIO direction...\n");
-    
-    int result = gpio_set_direction(17, "out");
-    assert(result == 0);
-    
-    result = gpio_set_direction(18, "in");
-    assert(result == 0);
-    
-    printf("✓ GPIO direction test passed\n");
-}
-
-void test_gpio_value() {
-    printf("Testing GPIO value...\n");
-    
-    gpio_set_value(17, 1);
-    int value = gpio_get_value(17);
-    assert(value == 1);
-    
-    gpio_set_value(17, 0);
-    value = gpio_get_value(17);
-    assert(value == 0);
-    
-    printf("✓ GPIO value test passed\n");
-}
-
-int main() {
-    printf("Starting GPIO tests...\n");
-    
-    test_gpio_export();
-    test_gpio_direction();
-    test_gpio_value();
-    
-    printf("All tests passed!\n");
-    return 0;
-}
-```
-
-##  Examples
-
-### Example 1: LED Blink (Complete Sample Program)
-```c
-// blink.c - Blink LED using unified GPIO API
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include "gpio_unified.h"
-
-int main(int argc, char *argv[]) {
-    gpio_config_t config = {
-        .pin = 17,
-        .direction = "out",
-        .value = 0,
-        .chip = 0,
-        .use_libgpiod = 1,  // Use libgpiod if available
-        .edge = "none",
-        .bias = "default"
-    };
-    
-    // Initialize GPIO
-    if (gpio_init(&config) < 0) {
-        fprintf(stderr, "Failed to initialize GPIO\n");
-        return 1;
-    }
-    
-    printf("Blinking LED on GPIO%d...\n", config.pin);
-    printf("Press Ctrl+C to stop\n");
-    
-    // Blink loop
-    for (int i = 0; i < 20; i++) {
-        gpio_write(&config, 1);  // LED on
-        printf("Cycle %d: ON\n", i+1);
-        sleep(1);
-        
-        gpio_write(&config, 0);  // LED off
-        printf("Cycle %d: OFF\n", i+1);
-        sleep(1);
-    }
-    
-    // Cleanup
-    gpio_cleanup(&config);
-    printf("Program finished\n");
-    
-    return 0;
-}
-```
-
-### Example 2: Button with Interrupt
-```c
-// button_interrupt.c - Button with edge detection
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <unistd.h>
-#include "gpio_libgpiod.h"
-
-volatile int running = 1;
-
-void signal_handler(int sig) {
-    running = 0;
-}
-
-void button_callback(int pin, int value) {
-    printf("Button on GPIO%d: %s\n", 
-           pin, 
-           value ? "RELEASED" : "PRESSED");
-}
-
-int main() {
-    signal(SIGINT, signal_handler);
-    
-    printf("Button interrupt example\n");
-    printf("Press the button...\n");
-    printf("Press Ctrl+C to exit\n");
-    
-    // Configure button pin with interrupt
-    struct gpiod_chip *chip = gpiod_open_chip("0");
-    struct gpiod_line *button = gpiod_request_line(chip, 18, 
-        GPIOHANDLE_REQUEST_INPUT | 
-        GPIOHANDLE_REQUEST_BIAS_PULL_UP |
-        GPIOHANDLE_REQUEST_EVENT_BOTH_EDGES);
-    
-    if (!button) {
-        fprintf(stderr, "Failed to configure button\n");
-        return 1;
-    }
-    
-    // Event loop
-    while (running) {
-        struct gpiod_line_event event;
-        int ret = gpiod_line_event_wait(button, &timeout);
-        
-        if (ret > 0) {
-            ret = gpiod_line_event_read(button, &event);
-            if (ret == 0) {
-                button_callback(18, event.event_type == GPIOD_LINE_EVENT_RISING_EDGE);
-            }
-        } else if (ret < 0) {
-            perror("Error waiting for event");
-            break;
-        }
-    }
-    
-    // Cleanup
-    gpiod_line_release(button);
-    gpiod_chip_close(chip);
-    
-    printf("\nExiting...\n");
-    return 0;
-}
-```
-
-### Example 3: PWM Simulation
-```c
-// pwm.c - Software PWM using GPIO
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <math.h>
-#include "gpio_unified.h"
-
-void pwm_write(gpio_config_t *config, float duty_cycle, int period_ms) {
-    int on_time = (int)(period_ms * duty_cycle);
-    int off_time = period_ms - on_time;
-    
-    if (on_time > 0) {
-        gpio_write(config, 1);
-        usleep(on_time * 1000);
-    }
-    
-    if (off_time > 0) {
-        gpio_write(config, 0);
-        usleep(off_time * 1000);
-    }
-}
-
-int main() {
-    gpio_config_t config = {
-        .pin = 17,
-        .direction = "out",
-        .value = 0
-    };
-    
-    if (gpio_init(&config) < 0) {
-        fprintf(stderr, "GPIO init failed\n");
-        return 1;
-    }
-    
-    printf("PWM Demo - Fading LED\n");
-    
-    // Fade in
-    for (int i = 0; i <= 100; i++) {
-        float duty = i / 100.0;
-        pwm_write(&config, duty, 20);  // 20ms period = 50Hz
-        printf("\rDuty cycle: %3d%%", i);
-        fflush(stdout);
-    }
-    
-    // Fade out
-    for (int i = 100; i >= 0; i--) {
-        float duty = i / 100.0;
-        pwm_write(&config, duty, 20);
-        printf("\rDuty cycle: %3d%%", i);
-        fflush(stdout);
-    }
-    
-    printf("\nDone\n");
-    gpio_cleanup(&config);
-    
-    return 0;
-}
-```
-
-##  Troubleshooting
-
-### Common Issues
-
-**1. Permission Denied**
-```bash
-# Error: "Permission denied" when accessing GPIO
-# Solution: Add user to gpio group
-sudo usermod -a -G gpio $USER
-# Log out and log back in
-
-# Or run with sudo (not recommended for production)
-sudo ./gpio-sysfs --pin 17 --direction out
-```
-
-**2. GPIO Already Exported**
-```bash
-# Error: "Device or resource busy"
-# Solution: Unexport first
-echo 17 > /sys/class/gpio/unexport 2>/dev/null
-# Or use the provided tool
-./gpio-sysfs --pin 17 --unexport
-```
-
-**3. libgpiod Not Found**
-```bash
-# Error: "libgpiod.so not found"
-# Solution: Install libgpiod
-sudo apt install libgpiod-dev libgpiod2
-
-# Check installation
-pkg-config --modversion libgpiod
-```
-
-**4. Simulator Not Working**
-```bash
-# Error: Simulator not starting
-# Solution: Check Python dependencies
-pip3 install -r requirements.txt
-
-# Check virtual GPIO root
-echo $VIRT_GPIO_ROOT
-# Should be set to simulation directory
-```
-
-### Debug Mode
-```bash
-# Enable verbose logging
-./gpio-sysfs --pin 17 --direction out --value 1 --verbose
-
-# Debug with strace
-strace ./gpio-sysfs --pin 17 --direction out
-
-# Check system logs
-dmesg | tail -20
-journalctl -f
-```
-
-### Hardware Debugging
-```bash
-# Check if GPIO is working at kernel level
-sudo cat /sys/kernel/debug/gpio
-
-# Check dmesg for GPIO errors
-dmesg | grep gpio
-
-# Test with kernel tools
-sudo gpioset gpiochip0 17=1
-sudo gpioget gpiochip0 17
-```
-
-##  Advanced Topics
-
-### Performance Comparison
-```
-Benchmark Results (1000 operations):
-+----------------+-----------+-----------+
-| Operation      | Sysfs     | libgpiod  |
-+----------------+-----------+-----------+
-| Write          | 12.5 ms   | 0.8 ms    |
-| Read           | 10.2 ms   | 0.7 ms    |
-| Toggle         | 22.7 ms   | 1.5 ms    |
-| Interrupt Latency | 5-10 ms | < 1 ms    |
-+----------------+-----------+-----------+
-```
-
-### Best Practices
-1. **Always cleanup**: Unexport/release GPIO pins when done
-2. **Use pull-up/down**: For input pins to avoid floating state
-3. **Debounce inputs**: Software debouncing for mechanical switches
-4. **Check permissions**: Ensure proper group membership
-5. **Error checking**: Always check return values
-6. **Resource limits**: Be mindful of system GPIO limits
-
-### Integration with Other Systems
-```c
-// Example: MQTT integration for IoT
-void mqtt_gpio_callback(char *topic, char *payload) {
-    if (strcmp(topic, "home/gpio/17/set") == 0) {
-        int value = atoi(payload);
-        gpio_set_value(17, value);
-        
-        // Publish status back
-        char status[50];
-        sprintf(status, "home/gpio/17/status:%d", value);
-        mqtt_publish(status);
-    }
-}
-```
-
-### Code Standards
-- Follow existing code style
-- Add comments for new functions
-- Include error handling
-- Update documentation
-- Add tests for new features
-
-##  Learning Resources
-
-### GPIO Fundamentals
-- [Linux GPIO Documentation](https://www.kernel.org/doc/html/latest/driver-api/gpio/)
-- [Raspberry Pi GPIO Documentation](https://www.raspberrypi.org/documentation/usage/gpio/)
-- [libgpiod Documentation](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/about/)
-
-### Embedded Linux
-- [Linux Device Drivers, 3rd Edition](https://lwn.net/Kernel/LDD3/)
-- [Embedded Linux Wiki](https://elinux.org/Main_Page)
-- [BeagleBoard GPIO Guide](https://beagleboard.org/gpio)
-
-### Advanced Topics
-- [GPIO Interrupts](https://elinux.org/GPIO_Interrupts)
-- [Device Tree Overlays](https://www.raspberrypi.org/documentation/configuration/device-tree.md)
-- [Hardware PWM vs Software PWM](https://elinux.org/RPi_GPIO_Code_Samples#PWM)
+# STM32MP157-DK2 — Virtual GPIO Control & Simulator
+
+[![Build](https://img.shields.io/badge/Build-Passing-brightgreen)](#build-procedure)
+[![Platform](https://img.shields.io/badge/Platform-STM32MP157--DK2-blue)](#hardware-platform)
+[![CPU](https://img.shields.io/badge/CPU-Cortex--A7-orange)](#hardware-platform)
+[![RTOS%2FOS](https://img.shields.io/badge/OS-Linux-yellow)](#software-architecture)
+[![Yocto](https://img.shields.io/badge/Yocto-Linux-blueviolet)](#yocto-build)
+[![Language](https://img.shields.io/badge/Language-C%20%7C%20Python%20%7C%20Shell-lightgrey)](#project-structure)
+[![GPIO](https://img.shields.io/badge/GPIO-libgpiod%20%7C%20Sysfs-green)](#gpio-interfaces)
+[![License](https://img.shields.io/badge/License-MIT-green)](#license)
 
 ---
 
-**Happy GPIO Hacking!** 
+## Table of Contents
 
-*This project provides a solid foundation for GPIO programming on Linux systems, suitable for both learning and production use.*
+1. [Project Overview](#1-project-overview)
+2. [Project Objectives](#2-project-objectives)
+3. [Hardware Platform](#3-hardware-platform)
+4. [Hardware Architecture](#4-hardware-architecture)
+5. [Software Architecture](#5-software-architecture)
+6. [Complete System Flow](#6-complete-system-flow)
+7. [Boot Flow](#7-boot-flow)
+8. [GPIO Software Flow](#8-gpio-software-flow)
+9. [Linux GPIO Subsystem](#9-linux-gpio-subsystem)
+10. [Virtual GPIO Driver](#10-virtual-gpio-driver)
+11. [Device Tree Flow](#11-device-tree-flow)
+12. [libgpiod Flow](#12-libgpiod-flow)
+13. [Sysfs GPIO Flow](#13-sysfs-gpio-flow)
+14. [Application Flow](#14-application-flow)
+15. [Simulator Flow](#15-simulator-flow)
+16. [Project Directory Structure](#16-project-directory-structure)
+17. [Source Code Organization](#17-source-code-organization)
+18. [Kernel Driver](#18-kernel-driver)
+19. [Yocto Layer](#19-yocto-layer)
+20. [Prerequisites](#20-prerequisites)
+21. [Repository Setup](#21-repository-setup)
+22. [Native Build](#22-native-build)
+23. [Yocto Build](#23-yocto-build)
+24. [Build Procedure](#24-build-procedure)
+25. [SD Card Preparation](#25-sd-card-preparation)
+26. [Flashing Procedure](#26-flashing-procedure)
+27. [Booting STM32MP157-DK2](#27-booting-stm32mp157-dk2)
+28. [GPIO Testing](#28-gpio-testing)
+29. [LED Testing](#29-led-testing)
+30. [Button Testing](#30-button-testing)
+31. [Interrupt Testing](#31-interrupt-testing)
+32. [PWM Testing](#32-pwm-testing)
+33. [Simulator Testing](#33-simulator-testing)
+34. [Unit Testing](#34-unit-testing)
+35. [Integration Testing](#35-integration-testing)
+36. [Debugging](#36-debugging)
+37. [Troubleshooting](#37-troubleshooting)
+38. [Development Workflow](#38-development-workflow)
+39. [Adding a New GPIO](#39-adding-a-new-gpio)
+40. [Adding a New Application](#40-adding-a-new-application)
+41. [Adding a New Device Tree Node](#41-adding-a-new-device-tree-node)
+42. [Adding a New Yocto Recipe](#42-adding-a-new-yocto-recipe)
+43. [Cleaning the Build](#43-cleaning-the-build)
+44. [Project Deliverables](#44-project-deliverables)
+45. [Future Enhancements](#45-future-enhancements)
+46. [License](#46-license)
+
+---
+
+# 1. Project Overview
+
+The **STM32MP157-DK2 Virtual GPIO Control & Simulator** project demonstrates complete GPIO development on an embedded Linux platform using the **STM32MP157-DK2 development board**.
+
+The project covers the complete path from:
+
+```text
+Hardware
+   ↓
+STM32MP157 SoC
+   ↓
+Boot ROM
+   ↓
+TF-A / U-Boot
+   ↓
+Linux Kernel
+   ↓
+Device Tree
+   ↓
+Linux GPIO Subsystem
+   ↓
+Virtual GPIO Driver
+   ↓
+GPIO Character Device
+   ↓
+libgpiod / Sysfs
+   ↓
+C Applications
+   ↓
+LED / Button / Interrupt / PWM
+```
+
+A software GPIO simulator is also provided so GPIO applications can be developed and tested without physical hardware.
+
+---
+
+# 2. Project Objectives
+
+The main objectives are:
+
+* Understand STM32MP157 Linux boot flow.
+* Understand Device Tree configuration.
+* Understand Linux GPIO subsystem.
+* Develop a virtual GPIO kernel driver.
+* Expose GPIO through the Linux GPIO framework.
+* Access GPIO using `libgpiod`.
+* Demonstrate legacy Sysfs GPIO access.
+* Develop LED applications.
+* Develop button applications.
+* Implement GPIO interrupt handling.
+* Implement PWM LED control.
+* Provide a GPIO simulator.
+* Automate build and deployment using Yocto.
+* Automate hardware and software testing.
+* Provide a complete embedded Linux development workflow.
+
+---
+
+# 3. Hardware Platform
+
+## STM32MP157-DK2
+
+The STM32MP157-DK2 is based on the STM32MP157 MPU family.
+
+The processor contains:
+
+```text
+STM32MP157
+│
+├── Cortex-A7 CPU
+│   └── Linux
+│
+├── Cortex-M4 CPU
+│   └── Real-time applications
+│
+├── DDR Memory
+│
+├── GPIO Controllers
+│
+├── I2C
+├── SPI
+├── UART
+├── ADC
+├── PWM
+├── Ethernet
+├── USB
+├── SDMMC
+├── MIPI DSI
+└── Camera / Display interfaces
+```
+
+For this project, the primary focus is:
+
+```text
+STM32MP157
+      │
+      └── GPIO
+           │
+           ├── LED
+           ├── Button
+           ├── Interrupt
+           └── PWM
+```
+
+---
+
+# 4. Hardware Architecture
+
+```text
+             STM32MP157-DK2
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+      Cortex-A7            Cortex-M4
+          │
+        Linux
+          │
+   ┌──────┴───────┐
+   │              │
+ GPIO Controller  Other HW
+   │
+   ├── GPIO pins
+   ├── LED
+   ├── Button
+   └── PWM
+```
+
+The Cortex-A7 Linux environment is responsible for the GPIO application and Linux driver side of this project.
+
+---
+
+# 5. Software Architecture
+
+```text
++------------------------------------------------------+
+|                    Applications                      |
+|                                                      |
+| LED | Button | Interrupt | PWM | GPIO Test          |
++---------------------------+--------------------------+
+                            |
+                            v
++------------------------------------------------------+
+|                  GPIO User Interface                 |
+|                                                      |
+|              libgpiod / Sysfs                       |
++---------------------------+--------------------------+
+                            |
+                            v
++------------------------------------------------------+
+|                 Linux GPIO Subsystem                 |
+|                                                      |
+|                 gpio_chip framework                  |
++---------------------------+--------------------------+
+                            |
+                            v
++------------------------------------------------------+
+|                Virtual GPIO Driver                   |
+|                                                      |
+|              virtual_gpio.ko                        |
++---------------------------+--------------------------+
+                            |
+                            v
++------------------------------------------------------+
+|                   Linux Kernel                       |
++---------------------------+--------------------------+
+                            |
+                            v
++------------------------------------------------------+
+|                STM32MP157 Hardware                   |
++------------------------------------------------------+
+```
+
+---
+
+# 6. Complete System Flow
+
+The complete project flow is:
+
+```text
+Power ON
+   ↓
+Boot ROM
+   ↓
+TF-A
+   ↓
+U-Boot
+   ↓
+Load Linux Kernel
+   ↓
+Load Device Tree
+   ↓
+Kernel Initialization
+   ↓
+GPIO Controller Initialization
+   ↓
+Virtual GPIO Driver
+   ↓
+gpiochip registration
+   ↓
+/dev/gpiochipX
+   ↓
+libgpiod
+   ↓
+Application
+   ↓
+GPIO Operation
+```
+
+For a real hardware GPIO:
+
+```text
+Application
+    ↓
+libgpiod
+    ↓
+/dev/gpiochipX
+    ↓
+Linux GPIO subsystem
+    ↓
+STM32 GPIO driver
+    ↓
+STM32 GPIO controller
+    ↓
+Physical GPIO pin
+    ↓
+LED / Button
+```
+
+For virtual GPIO:
+
+```text
+Application
+    ↓
+libgpiod
+    ↓
+/dev/gpiochipX
+    ↓
+Linux GPIO subsystem
+    ↓
+virtual_gpio.ko
+    ↓
+Software GPIO state
+```
+
+---
+
+# 7. Boot Flow
+
+```text
+1. Power ON
+      ↓
+2. STM32 Boot ROM
+      ↓
+3. TF-A / Trusted Firmware-A
+      ↓
+4. U-Boot
+      ↓
+5. U-Boot initializes DDR
+      ↓
+6. U-Boot initializes storage
+      ↓
+7. U-Boot loads Kernel
+      ↓
+8. U-Boot loads Device Tree
+      ↓
+9. Linux Kernel starts
+      ↓
+10. Kernel decompresses / initializes
+      ↓
+11. Device Tree parsed
+      ↓
+12. Drivers initialized
+      ↓
+13. GPIO controller registered
+      ↓
+14. Root filesystem mounted
+      ↓
+15. systemd / init starts
+      ↓
+16. GPIO application available
+```
+
+---
+
+# 8. GPIO Software Flow
+
+For example:
+
+```bash
+gpioset gpiochip0 17=1
+```
+
+Flow:
+
+```text
+gpioset
+   ↓
+libgpiod
+   ↓
+GPIO character device
+   ↓
+/dev/gpiochip0
+   ↓
+Linux GPIO ioctl()
+   ↓
+GPIO subsystem
+   ↓
+gpio_chip callbacks
+   ↓
+GPIO driver
+   ↓
+Hardware GPIO
+```
+
+For virtual GPIO:
+
+```text
+gpioset
+   ↓
+libgpiod
+   ↓
+/dev/gpiochipX
+   ↓
+GPIO subsystem
+   ↓
+virtual_gpio_set()
+   ↓
+virtual_gpio.value
+```
+
+---
+
+# 9. Linux GPIO Subsystem
+
+Linux provides a GPIO abstraction layer.
+
+The main object is:
+
+```c
+struct gpio_chip
+```
+
+The virtual driver implements operations such as:
+
+```c
+get()
+set()
+
+direction_input()
+direction_output()
+
+request()
+free()
+```
+
+The driver registers the controller:
+
+```c
+gpiochip_add_data()
+```
+
+After registration Linux creates a GPIO character device.
+
+Example:
+
+```text
+/dev/gpiochip0
+/dev/gpiochip1
+/dev/gpiochip2
+```
+
+---
+
+# 10. Virtual GPIO Driver
+
+The driver files are:
+
+```text
+kernel/
+└── driver/
+    ├── Makefile
+    ├── virtual_gpio.c
+    └── virtual_gpio.h
+```
+
+Yocto version:
+
+```text
+yocto/
+└── meta-virtual-gpio/
+    └── recipes-kernel/
+        └── virtual-gpio/
+            ├── virtual-gpio.bb
+            └── files/
+                ├── virtual_gpio.c
+                ├── virtual_gpio.h
+                └── virtual-gpio.cfg
+```
+
+The driver maintains:
+
+```text
+GPIO direction
+GPIO value
+GPIO number
+GPIO state
+```
+
+Example:
+
+```text
+GPIO0  → INPUT  → 0
+GPIO1  → OUTPUT → 1
+GPIO2  → OUTPUT → 0
+GPIO3  → INPUT  → 1
+```
+
+---
+
+# 11. Device Tree Flow
+
+Device Tree describes the hardware to Linux.
+
+Project Device Tree files:
+
+```text
+device-tree/
+├── README.md
+├── stm32mp157-gpio-test.dts
+└── stm32mp157-gpio-test-overlay.dts
+```
+
+Flow:
+
+```text
+DTS
+ ↓
+DTB
+ ↓
+U-Boot
+ ↓
+Linux Kernel
+ ↓
+Device Tree Parser
+ ↓
+Driver Matching
+ ↓
+GPIO Controller
+```
+
+Build:
+
+```bash
+dtc -I dts -O dtb \
+    -o stm32mp157-gpio-test.dtb \
+    stm32mp157-gpio-test.dts
+```
+
+---
+
+# 12. libgpiod Flow
+
+Modern Linux GPIO applications should use `libgpiod`.
+
+Check GPIO controllers:
+
+```bash
+gpiodetect
+```
+
+Example:
+
+```text
+gpiochip0 [gpio@50002000] (16 lines)
+gpiochip1 [gpio@50003000] (16 lines)
+```
+
+Inspect GPIO:
+
+```bash
+gpioinfo
+```
+
+Read:
+
+```bash
+gpioget gpiochip0 5
+```
+
+Write:
+
+```bash
+gpioset gpiochip0 5=1
+```
+
+---
+
+# 13. Sysfs GPIO Flow
+
+Sysfs GPIO is the older interface.
+
+Example:
+
+```bash
+echo 17 > /sys/class/gpio/export
+```
+
+Set direction:
+
+```bash
+echo out > /sys/class/gpio/gpio17/direction
+```
+
+Set value:
+
+```bash
+echo 1 > /sys/class/gpio/gpio17/value
+```
+
+Read:
+
+```bash
+cat /sys/class/gpio/gpio17/value
+```
+
+Cleanup:
+
+```bash
+echo 17 > /sys/class/gpio/unexport
+```
+
+> Note: GPIO Sysfs is deprecated in modern Linux kernels. `libgpiod`/GPIO character devices are preferred.
+
+---
+
+# 14. Application Flow
+
+Applications are located under:
+
+```text
+application/
+├── examples/
+│   ├── button.c
+│   ├── button_irq.c
+│   ├── gpio_toggle.c
+│   └── led_blink.c
+│
+├── include/
+│   ├── gpio_common.h
+│   ├── gpio_libgpiod.h
+│   └── gpio_sysfs.h
+│
+└── src/
+    ├── gpio-common.c
+    ├── gpio-libgpiod.c
+    └── gpio-sysfs.c
+```
+
+Common API:
+
+```c
+gpio_init();
+gpio_read();
+gpio_write();
+gpio_cleanup();
+```
+
+---
+
+# 15. Simulator Flow
+
+Simulator:
+
+```text
+simulator/
+├── config.json
+├── gpio_events.py
+├── gpio_model.py
+└── simulator.py
+```
+
+Architecture:
+
+```text
+Application
+     ↓
+GPIO API
+     ↓
+Simulator
+     ↓
+gpio_model.py
+     ↓
+Virtual GPIO state
+     ↓
+GPIO events
+```
+
+Simulator allows development without hardware.
+
+Example:
+
+```bash
+cd simulator
+
+python3 simulator.py
+```
+
+---
+
+# 16. Project Directory Structure
+
+Complete project:
+
+```text
+STM32MP157-DK2/
+│
+├── application/
+│   ├── examples/
+│   │   ├── button.c
+│   │   ├── button_irq.c
+│   │   ├── gpio_toggle.c
+│   │   └── led_blink.c
+│   │
+│   ├── include/
+│   │   ├── gpio_common.h
+│   │   ├── gpio_libgpiod.h
+│   │   └── gpio_sysfs.h
+│   │
+│   └── src/
+│       ├── gpio-common.c
+│       ├── gpio-libgpiod.c
+│       └── gpio-sysfs.c
+│
+├── configs/
+│   ├── gpio-test-config.json
+│   └── stm32mp157_gpio_defconfig
+│
+├── device-tree/
+│   ├── README.md
+│   ├── stm32mp157-gpio-test.dts
+│   └── stm32mp157-gpio-test-overlay.dts
+│
+├── docs/
+│   ├── architecture.md
+│   ├── boot-flow.md
+│   ├── device-tree.md
+│   ├── gpio-driver.md
+│   ├── gpio-libgpiod.md
+│   ├── gpio-linux-subsystem.md
+│   ├── gpio-sysfs.md
+│   ├── stm32mp157-gpio.md
+│   └── troubleshooting.md
+│
+├── examples/
+│   ├── button/
+│   │   ├── button.c
+│   │   ├── Makefile
+│   │   └── README.md
+│   │
+│   ├── interrupt/
+│   │   ├── button_irq.c
+│   │   ├── gpio_irq.c
+│   │   ├── Makefile
+│   │   └── README.md
+│   │
+│   ├── led/
+│   │   ├── gpio_toggle.c
+│   │   ├── led_blink.c
+│   │   ├── Makefile
+│   │   └── README.md
+│   │
+│   └── pwm/
+│       ├── pwm_fade.c
+│       ├── pwm_led.c
+│       ├── Makefile
+│       └── README.md
+│
+├── kernel/
+│   ├── driver/
+│   │   ├── Makefile
+│   │   ├── virtual_gpio.c
+│   │   └── virtual_gpio.h
+│   │
+│   └── patches/
+│       └── README.md
+│
+├── scripts/
+│   ├── build.sh
+│   ├── clean.sh
+│   ├── deploy.sh
+│   ├── flash_sd.sh
+│   ├── gpio_info.sh
+│   └── hardware_test.sh
+│
+├── simulator/
+│   ├── config.json
+│   ├── gpio_events.py
+│   ├── gpio_model.py
+│   └── simulator.py
+│
+├── tests/
+│   ├── integration/
+│   │   └── test_gpio_hw.sh
+│   │
+│   ├── simulation/
+│   │   └── test_simulator.sh
+│   │
+│   ├── unit/
+│   │   └── test_gpio.c
+│   │
+│   └── test.sh
+│
+├── yocto/
+│   └── meta-virtual-gpio/
+│       ├── conf/
+│       ├── recipes-apps/
+│       │   └── virtual-gpio/
+│       │       ├── virtual-gpio-app.bb
+│       │       └── files/
+│       │           ├── button.c
+│       │           ├── button_irq.c
+│       │           ├── gpio-common.c
+│       │           ├── gpio-libgpiod.c
+│       │           ├── gpio-sysfs.c
+│       │           ├── gpio-test-config.json
+│       │           ├── gpio_common.h
+│       │           ├── gpio_libgpiod.h
+│       │           ├── gpio_sysfs.h
+│       │           ├── gpio_toggle.c
+│       │           ├── led_blink.c
+│       │           ├── pwm_fade.c
+│       │           └── pwm_led.c
+│       │
+│       └── recipes-kernel/
+│           └── virtual-gpio/
+│               ├── virtual-gpio.bb
+│               └── files/
+│                   ├── virtual_gpio.c
+│                   ├── virtual_gpio.h
+│                   └── virtual-gpio.cfg
+│
+└── README.md
+```
+
+---
+
+# 17. Source Code Organization
+
+The project follows three major layers:
+
+```text
+Application Layer
+       ↓
+GPIO Abstraction Layer
+       ↓
+Linux GPIO Layer
+```
+
+### Application
+
+```text
+led_blink.c
+button.c
+button_irq.c
+pwm_led.c
+```
+
+### GPIO abstraction
+
+```text
+gpio-common.c
+gpio-libgpiod.c
+gpio-sysfs.c
+```
+
+### Kernel
+
+```text
+virtual_gpio.c
+```
+
+---
+
+# 18. Kernel Driver
+
+Build driver manually:
+
+```bash
+cd kernel/driver
+
+make
+```
+
+Output:
+
+```text
+virtual_gpio.ko
+```
+
+Insert:
+
+```bash
+sudo insmod virtual_gpio.ko
+```
+
+Check:
+
+```bash
+lsmod | grep virtual_gpio
+```
+
+Kernel log:
+
+```bash
+dmesg | tail -30
+```
+
+Remove:
+
+```bash
+sudo rmmod virtual_gpio
+```
+
+---
+
+# 19. Yocto Layer
+
+The custom Yocto layer is:
+
+```text
+meta-virtual-gpio
+```
+
+Add it:
+
+```bash
+bitbake-layers add-layer \
+    ../meta-virtual-gpio
+```
+
+Verify:
+
+```bash
+bitbake-layers show-layers
+```
+
+Expected:
+
+```text
+meta-virtual-gpio
+```
+
+---
+
+# 20. Prerequisites
+
+Host machine:
+
+```text
+Ubuntu 22.04 / 24.04
+Git
+GCC
+Make
+CMake
+Python3
+Yocto
+BitBake
+Device Tree Compiler
+libgpiod
+```
+
+Install:
+
+```bash
+sudo apt update
+
+sudo apt install -y \
+    git \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    cmake \
+    python3 \
+    python3-pip \
+    device-tree-compiler \
+    libgpiod-dev \
+    gpiod \
+    u-boot-tools \
+    dosfstools \
+    parted \
+    bmap-tools
+```
+
+---
+
+# 21. Repository Setup
+
+Clone:
+
+```bash
+git clone <repository-url>
+cd STM32MP157-DK2
+```
+
+Make scripts executable:
+
+```bash
+chmod +x scripts/*.sh
+chmod +x tests/*.sh
+```
+
+---
+
+# 22. Native Build
+
+Build application:
+
+```bash
+cd application
+
+make
+```
+
+Build examples:
+
+```bash
+cd examples/led
+make
+
+cd ../button
+make
+
+cd ../interrupt
+make
+
+cd ../pwm
+make
+```
+
+---
+
+# 23. Yocto Build
+
+Initialize Yocto environment:
+
+```bash
+source oe-init-build-env
+```
+
+Add custom layer:
+
+```bash
+bitbake-layers add-layer \
+    ../meta-virtual-gpio
+```
+
+Verify:
+
+```bash
+bitbake-layers show-layers
+```
+
+---
+
+# 24. Build Procedure
+
+Recommended project build:
+
+```bash
+./scripts/build.sh
+```
+
+Manual Yocto build:
+
+```bash
+source oe-init-build-env build
+```
+
+Then:
+
+```bash
+bitbake <image-name>
+```
+
+For example:
+
+```bash
+bitbake core-image-minimal
+```
+
+The build produces:
+
+```text
+tmp/deploy/images/stm32mp1/
+```
+
+Typical output:
+
+```text
+Image
+*.dtb
+*.wic
+*.wic.gz
+```
+
+---
+
+# 25. SD Card Preparation
+
+Identify SD card:
+
+```bash
+lsblk
+```
+
+Example:
+
+```text
+/dev/sdb
+├── /dev/sdb1
+└── /dev/sdb2
+```
+
+**Make absolutely sure you select the correct device.**
+
+Unmount:
+
+```bash
+sudo umount /dev/sdb1
+sudo umount /dev/sdb2
+```
+
+---
+
+# 26. Flashing Procedure
+
+Using the project script:
+
+```bash
+sudo ./scripts/flash_sd.sh /dev/sdX
+```
+
+Example:
+
+```bash
+sudo ./scripts/flash_sd.sh /dev/sdb
+```
+
+Manual flashing of a WIC image:
+
+```bash
+sudo dd if=tmp/deploy/images/stm32mp1/<image>.wic \
+        of=/dev/sdX \
+        bs=4M \
+        status=progress \
+        conv=fsync
+```
+
+Then:
+
+```bash
+sync
+```
+
+Remove SD card:
+
+```bash
+sudo eject /dev/sdX
+```
+
+Insert the SD card into the STM32MP157-DK2.
+
+---
+
+# 27. Booting STM32MP157-DK2
+
+Connect:
+
+```text
+STM32MP157-DK2
+       │
+       ├── SD Card
+       │
+       ├── USB
+       │
+       └── UART Debug Console
+```
+
+Open serial console.
+
+Typical Linux console settings:
+
+```text
+115200 baud
+8 data bits
+No parity
+1 stop bit
+```
+
+Boot board.
+
+Check:
+
+```bash
+uname -a
+```
+
+Check CPU:
+
+```bash
+cat /proc/cpuinfo
+```
+
+Check GPIO:
+
+```bash
+gpiodetect
+```
+
+---
+
+# 28. GPIO Testing
+
+Check GPIO controllers:
+
+```bash
+gpiodetect
+```
+
+Inspect:
+
+```bash
+gpioinfo
+```
+
+Read:
+
+```bash
+gpioget gpiochip0 17
+```
+
+Set:
+
+```bash
+gpioset gpiochip0 17=1
+```
+
+Clear:
+
+```bash
+gpioset gpiochip0 17=0
+```
+
+---
+
+# 29. LED Testing
+
+Run:
+
+```bash
+cd examples/led
+make
+```
+
+Blink:
+
+```bash
+./led_blink
+```
+
+Toggle:
+
+```bash
+./gpio_toggle
+```
+
+Expected:
+
+```text
+LED ON
+LED OFF
+LED ON
+LED OFF
+```
+
+---
+
+# 30. Button Testing
+
+Build:
+
+```bash
+cd examples/button
+make
+```
+
+Run:
+
+```bash
+./button
+```
+
+Expected:
+
+```text
+Button state: RELEASED
+Button state: PRESSED
+```
+
+---
+
+# 31. Interrupt Testing
+
+Build:
+
+```bash
+cd examples/interrupt
+make
+```
+
+Run:
+
+```bash
+./button_irq
+```
+
+Expected:
+
+```text
+GPIO interrupt detected
+RISING EDGE
+FALLING EDGE
+```
+
+Kernel debugging:
+
+```bash
+dmesg | grep -i gpio
+```
+
+---
+
+# 32. PWM Testing
+
+Build:
+
+```bash
+cd examples/pwm
+make
+```
+
+Run:
+
+```bash
+./pwm_led
+```
+
+Fade:
+
+```bash
+./pwm_fade
+```
+
+Example:
+
+```text
+Duty Cycle: 0%
+Duty Cycle: 25%
+Duty Cycle: 50%
+Duty Cycle: 75%
+Duty Cycle: 100%
+```
+
+---
+
+# 33. Simulator Testing
+
+Start simulator:
+
+```bash
+cd simulator
+python3 simulator.py
+```
+
+Run simulation tests:
+
+```bash
+cd tests/simulation
+./test_simulator.sh
+```
+
+The simulator models:
+
+```text
+GPIO
+ ├── Direction
+ ├── Value
+ ├── Rising Edge
+ ├── Falling Edge
+ └── State Changes
+```
+
+---
+
+# 34. Unit Testing
+
+Build:
+
+```bash
+cd tests/unit
+gcc test_gpio.c -o test_gpio
+```
+
+Run:
+
+```bash
+./test_gpio
+```
+
+Or:
+
+```bash
+./tests/test.sh
+```
+
+---
+
+# 35. Integration Testing
+
+Hardware integration test:
+
+```bash
+cd tests/integration
+./test_gpio_hw.sh
+```
+
+This validates:
+
+```text
+Application
+     ↓
+libgpiod
+     ↓
+GPIO subsystem
+     ↓
+GPIO driver
+     ↓
+STM32 GPIO
+     ↓
+Hardware
+```
+
+---
+
+# 36. Debugging
+
+Check kernel messages:
+
+```bash
+dmesg | tail -50
+```
+
+GPIO messages:
+
+```bash
+dmesg | grep -i gpio
+```
+
+Check modules:
+
+```bash
+lsmod
+```
+
+Check virtual GPIO:
+
+```bash
+lsmod | grep virtual_gpio
+```
+
+Check devices:
+
+```bash
+ls -l /dev/gpiochip*
+```
+
+Check GPIO:
+
+```bash
+gpiodetect
+gpioinfo
+```
+
+Trace application:
+
+```bash
+strace ./gpio_toggle
+```
+
+---
+
+# 37. Troubleshooting
+
+## GPIO permission error
+
+```bash
+sudo ./gpio_toggle
+```
+
+Or configure appropriate device permissions/udev rules.
+
+---
+
+## No `/dev/gpiochip*`
+
+Check:
+
+```bash
+ls /dev/gpiochip*
+```
+
+Then:
+
+```bash
+dmesg | grep gpio
+```
+
+Check kernel GPIO configuration.
+
+---
+
+## Driver not loaded
+
+```bash
+lsmod | grep virtual_gpio
+```
+
+Load:
+
+```bash
+sudo modprobe virtual_gpio
+```
+
+or:
+
+```bash
+sudo insmod virtual_gpio.ko
+```
+
+---
+
+## Check driver registration
+
+```bash
+dmesg | grep virtual_gpio
+```
+
+Expected:
+
+```text
+virtual_gpio: initializing
+virtual_gpio: registered successfully
+```
+
+---
+
+## Device Tree problem
+
+Check:
+
+```bash
+ls /proc/device-tree/
+```
+
+And:
+
+```bash
+dmesg | grep -i of
+```
+
+---
+
+# 38. Development Workflow
+
+The recommended development workflow is:
+
+```text
+Requirement
+    ↓
+Hardware GPIO definition
+    ↓
+Device Tree
+    ↓
+Kernel configuration
+    ↓
+Driver
+    ↓
+Yocto recipe
+    ↓
+RootFS
+    ↓
+Build
+    ↓
+SD image
+    ↓
+Flash
+    ↓
+Boot
+    ↓
+GPIO validation
+    ↓
+Application
+    ↓
+Integration test
+```
+
+For every new feature:
+
+```text
+Code
+ ↓
+Compile
+ ↓
+Unit Test
+ ↓
+Simulator Test
+ ↓
+Yocto Build
+ ↓
+Flash
+ ↓
+Hardware Test
+ ↓
+Integration Test
+```
+
+---
+
+# 39. Adding a New GPIO
+
+First identify GPIO:
+
+```bash
+gpioinfo
+```
+
+Add Device Tree configuration if required.
+
+Then test:
+
+```bash
+gpioget gpiochipX <line>
+```
+
+Output:
+
+```text
+0
+```
+
+Set:
+
+```bash
+gpioset gpiochipX <line>=1
+```
+
+---
+
+# 40. Adding a New Application
+
+Create:
+
+```text
+examples/
+└── new_app/
+    ├── new_app.c
+    ├── Makefile
+    └── README.md
+```
+
+Example:
+
+```c
+#include <stdio.h>
+
+int main(void)
+{
+    printf("STM32MP157 GPIO application\n");
+
+    return 0;
+}
+```
+
+Build:
+
+```bash
+make
+```
+
+Add the application to Yocto:
+
+```text
+recipes-apps/
+└── virtual-gpio/
+    └── files/
+        └── new_app.c
+```
+
+Update:
+
+```text
+virtual-gpio-app.bb
+```
+
+---
+
+# 41. Adding a New Device Tree Node
+
+Create/edit:
+
+```text
+device-tree/stm32mp157-gpio-test.dts
+```
+
+Example:
+
+```dts
+gpio_test {
+    compatible = "st,stm32mp157-gpio-test";
+
+    test-gpios = <&gpioa 5 0>;
+};
+```
+
+Compile:
+
+```bash
+dtc -I dts \
+    -O dtb \
+    -o stm32mp157-gpio-test.dtb \
+    stm32mp157-gpio-test.dts
+```
+
+Deploy DTB to boot partition.
+
+---
+
+# 42. Adding a New Yocto Recipe
+
+Create:
+
+```text
+recipes-apps/
+└── my-app/
+    ├── my-app.bb
+    └── files/
+        └── my-app.c
+```
+
+Recipe:
+
+```bitbake
+SUMMARY = "STM32MP157 GPIO application"
+LICENSE = "MIT"
+
+SRC_URI = "file://my-app.c"
+
+S = "${WORKDIR}"
+
+do_compile() {
+    ${CC} ${CFLAGS} ${LDFLAGS} \
+        ${S}/my-app.c \
+        -o ${S}/my-app
+}
+
+do_install() {
+    install -d ${D}${bindir}
+    install -m 0755 ${S}/my-app ${D}${bindir}/
+}
+```
+
+---
+
+# 43. Cleaning the Build
+
+Clean native project:
+
+```bash
+./scripts/clean.sh
+```
+
+Yocto clean:
+
+```bash
+bitbake -c clean virtual-gpio
+```
+
+Clean application:
+
+```bash
+make clean
+```
+
+Clean kernel module:
+
+```bash
+cd kernel/driver
+make clean
+```
+
+---
+
+# 44. Project Deliverables
+
+The final project provides:
+
+```text
+✓ STM32MP157-DK2 BSP
+✓ Linux boot flow
+✓ Device Tree configuration
+✓ Linux GPIO subsystem
+✓ Virtual GPIO kernel driver
+✓ libgpiod interface
+✓ Sysfs interface
+✓ GPIO abstraction layer
+✓ LED application
+✓ Button application
+✓ GPIO interrupt application
+✓ PWM application
+✓ GPIO simulator
+✓ Unit tests
+✓ Integration tests
+✓ Hardware tests
+✓ Yocto layer
+✓ Build scripts
+✓ SD flashing script
+✓ Deployment scripts
+✓ Debugging documentation
+```
+
+---
+
+# 45. Future Enhancements
+
+Possible future improvements:
+
+```text
+1. GPIO character-device event support
+2. Hardware interrupt integration
+3. Real PWM kernel driver
+4. GPIO debounce driver
+5. Multiple virtual GPIO chips
+6. Runtime GPIO configuration
+7. JSON-based GPIO configuration
+8. Python test automation
+9. CI/CD using GitHub Actions
+10. Automated Yocto builds
+11. Hardware-in-the-loop testing
+12. GPIO performance benchmarking
+13. Trace-cmd/ftrace integration
+14. Kernel debugfs interface
+15. QEMU-based STM32 Linux testing
+```
+
+---
+
+# 46. License
+
+This project is released under the MIT License.
+
+```text
+MIT License
+
+Copyright (c) 2026
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files, to deal
+in the Software without restriction...
+```
+
+---
+
+# Complete Project Flow
+
+The most important flow to understand for interviews and development is:
+
+```text
+                       STM32MP157-DK2
+                              │
+                              ▼
+                         Power ON
+                              │
+                              ▼
+                         Boot ROM
+                              │
+                              ▼
+                            TF-A
+                              │
+                              ▼
+                           U-Boot
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+                  Kernel               DTB
+                    │                   │
+                    └─────────┬─────────┘
+                              ▼
+                       Linux Kernel
+                              │
+                              ▼
+                    Device Tree Parsing
+                              │
+                              ▼
+                   GPIO Controller Driver
+                              │
+                              ▼
+                     Linux GPIO Subsystem
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+              Hardware GPIO       Virtual GPIO
+                    │                   │
+                    │            virtual_gpio.ko
+                    │                   │
+                    └─────────┬─────────┘
+                              ▼
+                       gpiochip framework
+                              │
+                              ▼
+                       /dev/gpiochipX
+                              │
+                              ▼
+                           libgpiod
+                              │
+              ┌───────────────┼───────────────┐
+              │               │               │
+             LED           Button          Interrupt
+              │               │               │
+              └───────────────┼───────────────┘
+                              │
+                             PWM
+                              │
+                              ▼
+                        GPIO Applications
+                              │
+                              ▼
+                       Test / Validation
+                              │
+               ┌──────────────┴──────────────┐
+               │                             │
+          Hardware Test                 Simulator
+               │                             │
+               └──────────────┬──────────────┘
+                              ▼
+                       Integration Test
+```
+
+
+```
+[![Build](https://img.shields.io/badge/Build-Passing-brightgreen)](#build-procedure)
+[![Platform](https://img.shields.io/badge/Platform-STM32MP157--DK2-blue)](#hardware-platform)
+[![Yocto](https://img.shields.io/badge/Yocto-Supported-blueviolet)](#yocto-build)
+[![Linux](https://img.shields.io/badge/Linux-Embedded-yellow)](#software-architecture)
+[![Language](https://img.shields.io/badge/Language-C%20%7C%20Python%20%7C%20Shell-lightgrey)](#project-structure)
+[![GPIO](https://img.shields.io/badge/GPIO-libgpiod%20%7C%20Sysfs-green)](#gpio-interfaces)
+```

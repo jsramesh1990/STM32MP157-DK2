@@ -1,0 +1,85 @@
+add simulator wrapper and test script
+
+create and make the files.
+
+gpio-sysfs.c
+
+gpio-libgpiod.c
+
+simulator.py
+
+Makefile
+
+test.sh
+chmod +x test.sh
+
+README.md
+
+.gitignore
+
+cat <<'EOF' > .gitignore
+*.o
+gcc-*.d
+bin/
+/tmp/
+*.exe
+*.so
+*.a
+EOF
+
+cat .gitignore
+
+Then press:
+
+Ctrl + O → save
+
+Enter → confirm
+
+Ctrl + X → exit
+
+========================================================
+git config user.name
+git config user.email
+
+git config --list
+
+rm ~/.gitconfig
+git config --list --global
+
+git config --global --unset user.email
+git config --global --unset user.name
+git config --global --unset http.https://chipmaster2.qti.qualcomm.com.followredirects
+git config --global --unset color.ui
+git config --global --unset credential.helper
+git config --global --unset http.chipmaster2.qti.qualcomm.com.followredirects
+git config --global --unset http.postbuffer
+git config --global --unset http.sslverify
+git config --global --unset http.version
+git config --global --unset http.followredirects
+git config --global --unset safe.directory
+git config --global --unset core.editor
+git config --global --unset https.postbuffer
+git config --global --unset http.https://qpm-git.qualcomm.com.followredirects
+
+
+
+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
+
+git init
+git add .
+git status
+git commit -m "feat: initial commit for virtual_sysfs_GPIO project with GPIO control and simulator"
+git remote add origin git@github.com:jsramesh1990/virtual_sysfs_GPIO.git
+git remote add origin https://github.com/jsramesh1990/virtual_sysfs_GPIO.git
+
+git config --global user.name "jsramesh1990"
+git config --global user.email "your-email@example.com"
+
+
+
+
+
+
+
+
+

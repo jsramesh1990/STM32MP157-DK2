@@ -12,6 +12,18 @@
 
 ---
 
+## Complete STM32MP157-DK2 System Flow
+
+The following animation illustrates the complete STM32MP157-DK2 execution flow, from power-on and bootloader initialization through Linux kernel, Device Tree, peripheral drivers, middleware, and the user application.
+
+<p align="center">
+  <img src="images/stm32mp157_flow_animation.gif"
+       alt="STM32MP157-DK2 Complete System Flow"
+       width="950">
+</p>
+
+---
+
 ## Table of Contents
 
 1. [Project Overview](#1-project-overview)
